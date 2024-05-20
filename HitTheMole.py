@@ -13,6 +13,8 @@ size = (700, 300)
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('HitTheMole')
 bg = pygame.image.load("images/grass02.png")
+counter = int()
+# showCounter
 
 # ENTITIES
 # Load custom cursor image (shovel)
@@ -75,6 +77,12 @@ while running:
     screen.blit(shovel, shovel_rect)
 
     # Event when hitting the mole
+    # check if mouse pressed
+    # Get current position of the mole_rect
+    # get current position of shovel_rect
+    # if intersection -- > Hit Animation and Sound and add 10Points to Counter
+    # else --> Sound (miss)
+
     mouse_pressed = pygame.mouse.get_pressed()
 
     if mouse_pressed[0]:  # Check if the left mouse button is pressed
