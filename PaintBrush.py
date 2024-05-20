@@ -13,7 +13,7 @@ screen.fill((255, 255, 255))
 pygame.display.set_caption('Paint Brush')
 
 # Entities
-brush = pygame.image.load('black_brush.gif')
+brush = pygame.image.load('images/black_brush.gif')
 brush = pygame.transform.scale(brush, (64, 64))
 
 # Action --> ALTER
