@@ -5,7 +5,6 @@ import pygame
 import random
 from pygame.locals import *
 
-
 pygame.init()
 
 # DISPLAY CONFIGURATION
@@ -13,8 +12,9 @@ size = (700, 300)
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('HitTheMole')
 bg = pygame.image.load("images/grass02.png")
-counter = int()
-# showCounter
+
+# Load hit sound
+hit_sound = pygame.mixer.Sound("sounds/punch1.mp3")
 
 # ENTITIES
 # Load custom cursor image (shovel)
@@ -36,8 +36,12 @@ mole_rect.topleft = (random.randint(0, size[0] - mole_rect.width), random.randin
 # ASSIGN VARIABLES
 show_mole = False
 mole_timer = pygame.time.get_ticks()
-mole_show_duration = 500  # Mole visible duration in milliseconds
+mole_show_duration = 700  # Mole visible duration in milliseconds
 mole_hide_duration = 400  # Mole hidden duration in milliseconds
+
+# Initialize score counter
+score = 0
+font = pygame.font.Font(None, 36)
 
 # LOOP
 running = True
@@ -76,20 +80,19 @@ while running:
     shovel_rect = shovel.get_rect(topleft=(mouse_pos[0] - 16, mouse_pos[1] - 16))  # Center the shovel on the mouse
     screen.blit(shovel, shovel_rect)
 
-    # Event when hitting the mole
-    # check if mouse pressed
-    # Get current position of the mole_rect
-    # get current position of shovel_rect
-    # if intersection -- > Hit Animation and Sound and add 10Points to Counter
-    # else --> Sound (miss)
-
+    # Check if the mole is hit
     mouse_pressed = pygame.mouse.get_pressed()
-
     if mouse_pressed[0]:  # Check if the left mouse button is pressed
-        x, y = pygame.mouse.get_pos()
-       # screen.blit(brush, (x-32, y-32))
+        if show_mole and mole_rect.collidepoint(mouse_pos):
+            hit_sound.play()
+            screen.blit(hit_animation, (mouse_pos))
+            score += 10
+            show_mole = False  # Hide the mole after it's hit
+            mole_timer = current_time  # Reset the timer
 
-
+    # Draw the score
+    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+    screen.blit(score_text, (10, 10))
 
     # REDISPLAY
     pygame.display.flip()
