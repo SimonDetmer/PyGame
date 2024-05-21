@@ -85,7 +85,6 @@ while running:
     if mouse_pressed[0]:  # Check if the left mouse button is pressed
         if show_mole and mole_rect.collidepoint(mouse_pos):
             hit_sound.play()
-            screen.blit(hit_animation, (mouse_pos))
             score += 10
             show_mole = False  # Hide the mole after it's hit
             mole_timer = current_time  # Reset the timer
