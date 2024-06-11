@@ -4,6 +4,7 @@ __author__ = 'sdetmer'
 import pygame
 import random
 from pygame.locals import *
+import sqlite3
 
 pygame.init()
 
@@ -16,6 +17,14 @@ bg = pygame.image.load("images/GalaxyIntrudersBG.jpg")
 # Colors
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
+
+# Highscore database setup
+conn = sqlite3.connect('highscores.db')
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS highscores
+             (name TEXT, score INTEGER)''')
+conn.commit()
+
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -34,11 +43,12 @@ class Player(pygame.sprite.Sprite):
         if keys[K_RIGHT] and self.rect.right < size[0]:
             self.rect.x += self.speed
 
+
 # Enemy class
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, image_path):
         super(Enemy, self).__init__()
-        self.image = pygame.image.load("images/enemy.png")
+        self.image = pygame.image.load(image_path)
         self.image = pygame.transform.scale(self.image, (40, 30))
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
@@ -48,9 +58,35 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x += self.speed
         if self.rect.right >= size[0] or self.rect.left <= 0:
             self.speed = -self.speed
-            self.rect.y += 10
+            self.rect.y += 30
 
-# Bullets class
+
+# Different types of enemies
+class RedEnemy(Enemy):
+    def __init__(self, x, y):
+        super(RedEnemy, self).__init__(x, y, "images/enemy-red.png")
+
+class YellowEnemy(Enemy):
+    def __init__(self, x, y):
+        super(YellowEnemy, self).__init__(x, y, "images/enemy-yellow.png")
+
+
+class WhiteEnemy(Enemy):
+    def __init__(self, x, y):
+        super(WhiteEnemy, self).__init__(x, y, "images/enemy-white.png")
+
+
+class PurpleEnemy(Enemy):
+    def __init__(self, x, y):
+        super(PurpleEnemy, self).__init__(x, y, "images/enemy-purple.png")
+
+
+class GreenEnemy(Enemy):
+    def __init__(self, x, y):
+        super(GreenEnemy, self).__init__(x, y, "images/enemy-green.png")
+
+
+# Bullet class
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super(Bullet, self).__init__()
@@ -65,19 +101,22 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.bottom < 0:
             self.kill()
 
+
+# EnemyBullet class
 class EnemyBullet(Bullet):
     def __init__(self, x, y):
-        super(Bullet, self).__init__()
+        super(EnemyBullet, self).__init__(x, y)
         self.image = pygame.Surface((2, 8))
         self.image.fill(RED)
         self.rect = self.image.get_rect()
         self.rect.midbottom = (x, y)
-        self.speed = 10  # Enemy bullets move downwards
+        self.speed = 5  # Enemy bullets move downwards
 
     def update(self):
         self.rect.y += self.speed
         if self.rect.top > size[1]:  # Destroy bullet when it goes off the bottom
             self.kill()
+
 
 # Barrier class
 class Barrier(pygame.sprite.Sprite):
@@ -88,6 +127,7 @@ class Barrier(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midbottom = (x, y)
 
+
 # Setup
 player = Player()
 enemies = pygame.sprite.Group()
@@ -95,15 +135,19 @@ bullets = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
 barriers = pygame.sprite.Group()
 
-# Create enemies
+# Create enemies with different types
+enemy_classes = [RedEnemy, GreenEnemy, WhiteEnemy, PurpleEnemy, YellowEnemy]
+
 for row in range(5):
     for col in range(10):
-        enemy = Enemy(40 * col + 20, 30 * row + 20)
+        enemy_class = enemy_classes[row % len(enemy_classes)]
+        enemy = enemy_class(40 * col + 20, 30 * row + 20)
         enemies.add(enemy)
 
 # Create barriers
-for i in range(4):
-    barrier = Barrier(100 * i + 50, size[1] - 100)
+barrier_positions = [(75, size[1] - 100), (175, size[1] - 100), (275, size[1] - 100), (375, size[1] - 100)]
+for pos in barrier_positions:
+    barrier = Barrier(pos[0], pos[1])
     barriers.add(barrier)
 
 all_sprites = pygame.sprite.Group(player, *enemies, *barriers)
@@ -111,6 +155,7 @@ all_sprites = pygame.sprite.Group(player, *enemies, *barriers)
 # Loop
 running = True
 clock = pygame.time.Clock()
+score = 0
 
 while running:
     # Event Handling
@@ -140,6 +185,9 @@ while running:
 
     # Check for collisions
     hits = pygame.sprite.groupcollide(bullets, enemies, True, True)
+    for hit in hits:
+        score += 10
+
     barrier_hits = pygame.sprite.groupcollide(bullets, barriers, True, False)
     player_hits = pygame.sprite.spritecollide(player, enemy_bullets, True)
     barrier_enemy_hits = pygame.sprite.groupcollide(enemy_bullets, barriers, True, False)
@@ -155,8 +203,29 @@ while running:
     # Draw all sprites
     all_sprites.draw(screen)
 
+    # Display score
+    font = pygame.font.Font(None, 36)
+    score_text = font.render(f'Score: {score}', True, WHITE)
+    screen.blit(score_text, (10, 10))
+
+    # Display lives
+    lives_text = font.render(f'Lives: {player.lives}', True, WHITE)
+    screen.blit(lives_text, (size[0] - 100, 10))
+
     # Redisplay
     pygame.display.flip()
     clock.tick(60)
 
+# Save highscore
+name = input("Enter your name: ")
+c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name, score))
+conn.commit()
+
+# Display highscores
+c.execute("SELECT * FROM highscores ORDER BY score DESC LIMIT 10")
+print("Highscores:")
+for row in c.fetchall():
+    print(f'{row[0]}: {row[1]}')
+
+conn.close()
 pygame.quit()
