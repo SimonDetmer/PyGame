@@ -1,4 +1,10 @@
 __author__ = 'sdetmer'
+#ToDO
+# - Highscoreeingabe und anschließende Highscore-Tabelle mit New Game Button im Screen
+# - Highscoreeingabe soll nicht abgefragt werden, bei Abbruch
+# - Wenn Gegner Barrieren erreichen endet das Spiel ohne Highscoreabfrage
+# - Player ändert optischen Zustand nach Treffern
+# - GegnerReihen starten minimal zeitverzögert
 
 # Import and Initialization
 import pygame
@@ -54,17 +60,15 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.topleft = (x, y)
         self.speed = 1
 
-    def update(self):
-        self.rect.x += self.speed
-        if self.rect.right >= size[0] or self.rect.left <= 0:
-            self.speed = -self.speed
-            self.rect.y += 30
+    def update(self, direction):
+        self.rect.x += self.speed * direction
 
 
 # Different types of enemies
 class RedEnemy(Enemy):
     def __init__(self, x, y):
         super(RedEnemy, self).__init__(x, y, "images/enemy-red.png")
+
 
 class YellowEnemy(Enemy):
     def __init__(self, x, y):
@@ -128,9 +132,36 @@ class Barrier(pygame.sprite.Sprite):
         self.rect.midbottom = (x, y)
 
 
+# EnemyGroup class
+class EnemyGroup:
+    def __init__(self):
+        self.enemies = pygame.sprite.Group()
+        self.direction = 1
+
+    def add(self, enemy):
+        self.enemies.add(enemy)
+
+    def update(self):
+        for enemy in self.enemies:
+            enemy.update(self.direction)
+
+        # Check if any enemy hits the screen boundary
+        change_direction = False
+        for enemy in self.enemies:
+            if enemy.rect.right >= size[0] or enemy.rect.left <= 0:
+                change_direction = True
+                break
+
+        # Change direction if needed and move enemies down
+        if change_direction:
+            self.direction *= -1
+            for enemy in self.enemies:
+                enemy.rect.y += 10
+
+
 # Setup
 player = Player()
-enemies = pygame.sprite.Group()
+enemies = EnemyGroup()
 bullets = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
 barriers = pygame.sprite.Group()
@@ -150,7 +181,8 @@ for pos in barrier_positions:
     barrier = Barrier(pos[0], pos[1])
     barriers.add(barrier)
 
-all_sprites = pygame.sprite.Group(player, *enemies, *barriers)
+all_sprites = pygame.sprite.Group(player, *barriers)
+all_sprites.add(*enemies.enemies)
 
 # Loop
 running = True
@@ -178,13 +210,13 @@ while running:
 
     # Randomly shoot enemy bullets
     if random.random() < 0.01:
-        enemy = random.choice(enemies.sprites())
+        enemy = random.choice(enemies.enemies.sprites())
         enemy_bullet = EnemyBullet(enemy.rect.centerx, enemy.rect.bottom)
         enemy_bullets.add(enemy_bullet)
         all_sprites.add(enemy_bullet)
 
     # Check for collisions
-    hits = pygame.sprite.groupcollide(bullets, enemies, True, True)
+    hits = pygame.sprite.groupcollide(bullets, enemies.enemies, True, True)
     for hit in hits:
         score += 10
 
