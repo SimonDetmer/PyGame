@@ -1,10 +1,10 @@
-__author__ = 'sdetmer'
+
 #ToDO
 # - Highscoreeingabe und anschließende Highscore-Tabelle mit New Game Button im Screen
-# - Highscoreeingabe soll nicht abgefragt werden, bei Abbruch
-# - Wenn Gegner Barrieren erreichen endet das Spiel ohne Highscoreabfrage
 # - Player ändert optischen Zustand nach Treffern
-# - GegnerReihen starten minimal zeitverzögert
+# - GameOver, wenn alle Gegner weg
+
+__author__ = 'sdetmer'
 
 # Import and Initialization
 import pygame
@@ -229,6 +229,11 @@ while running:
         if player.lives <= 0:
             running = False
 
+    # Überprüfe, ob Gegner die Barrieren erreicht haben
+    enemy_collides_with_barriers = pygame.sprite.groupcollide(enemies.enemies, barriers, False, False)
+    if any(enemy_collides_with_barriers.values()):
+        running = False
+
     # Draw the background
     screen.blit(bg, (0, 0))
 
@@ -248,10 +253,11 @@ while running:
     pygame.display.flip()
     clock.tick(60)
 
-# Save highscore
-name = input("Enter your name: ")
-c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name, score))
-conn.commit()
+# Highscore speichern
+if score > 0:  # Nur Highscore speichern, wenn Punktzahl größer als 0 ist
+    name = input("Gib deinen Namen ein: ")
+    c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name, score))
+    conn.commit()
 
 # Display highscores
 c.execute("SELECT * FROM highscores ORDER BY score DESC LIMIT 10")
