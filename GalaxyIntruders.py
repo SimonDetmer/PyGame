@@ -1,8 +1,6 @@
 
 #ToDO
 # - Highscoreeingabe und anschließende Highscore-Tabelle mit New Game Button im Screen
-# - Player ändert optischen Zustand nach Treffern
-# - GameOver, wenn alle Gegner weg
 
 __author__ = 'sdetmer'
 
@@ -36,8 +34,12 @@ conn.commit()
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super(Player, self).__init__()
-        self.image = pygame.image.load("images/player.png")
-        self.image = pygame.transform.scale(self.image, (50, 30))
+        self.images = {
+            3: pygame.image.load("images/player.png"),
+            2: pygame.image.load("images/player-2Lives.png"),
+            1: pygame.image.load("images/player-1Live.png")
+        }
+        self.image = pygame.transform.scale(self.images[3], (50, 30))
         self.rect = self.image.get_rect()
         self.rect.midbottom = (size[0] // 2, size[1] - 10)
         self.speed = 5
@@ -48,6 +50,13 @@ class Player(pygame.sprite.Sprite):
             self.rect.x -= self.speed
         if keys[K_RIGHT] and self.rect.right < size[0]:
             self.rect.x += self.speed
+
+    def lose_life(self):
+        self.lives -= 1
+        if self.lives > 0:
+            self.image = pygame.transform.scale(self.images[self.lives], (50, 30))
+        else:
+            self.kill()
 
 
 # Enemy class
@@ -158,6 +167,9 @@ class EnemyGroup:
             for enemy in self.enemies:
                 enemy.rect.y += 10
 
+    def is_empty(self):
+        return len(self.enemies) == 0
+
 
 # Setup
 player = Player()
@@ -225,13 +237,17 @@ while running:
     barrier_enemy_hits = pygame.sprite.groupcollide(enemy_bullets, barriers, True, False)
 
     for hit in player_hits:
-        player.lives -= 1
+        player.lose_life()
         if player.lives <= 0:
             running = False
 
-    # Überprüfe, ob Gegner die Barrieren erreicht haben
+    # Check if any enemies have reached the barriers
     enemy_collides_with_barriers = pygame.sprite.groupcollide(enemies.enemies, barriers, False, False)
     if any(enemy_collides_with_barriers.values()):
+        running = False
+
+    # Check if all enemies are defeated
+    if enemies.is_empty():
         running = False
 
     # Draw the background
@@ -253,7 +269,7 @@ while running:
     pygame.display.flip()
     clock.tick(60)
 
-# Highscore speichern
+# Save Highscore
 if score > 0:  # Nur Highscore speichern, wenn Punktzahl größer als 0 ist
     name = input("Gib deinen Namen ein: ")
     c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name, score))
@@ -261,9 +277,11 @@ if score > 0:  # Nur Highscore speichern, wenn Punktzahl größer als 0 ist
 
 # Display highscores
 c.execute("SELECT * FROM highscores ORDER BY score DESC LIMIT 10")
+highscores = c.fetchall()
 print("Highscores:")
-for row in c.fetchall():
-    print(f'{row[0]}: {row[1]}')
+for highscore in highscores:
+    print(f"{highscore[0]}: {highscore[1]}")
 
 conn.close()
 pygame.quit()
+
