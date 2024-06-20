@@ -12,6 +12,10 @@ import sqlite3
 
 pygame.init()
 
+# Musik einrichten
+pygame.mixer.music.load('sounds/GalaxyIntruderSoundtrack.mp3')
+pygame.mixer.music.play(-1)
+
 # Display configuration
 size = (450, 600)
 screen = pygame.display.set_mode(size)
@@ -210,6 +214,8 @@ while running:
             bullet = Bullet(player.rect.centerx, player.rect.top)
             bullets.add(bullet)
             all_sprites.add(bullet)
+            playerShotSound = pygame.mixer.Sound('sounds/shoot-player.mp3')
+            playerShotSound.play()
 
     # Timer
     keys = pygame.key.get_pressed()
@@ -226,11 +232,17 @@ while running:
         enemy_bullet = EnemyBullet(enemy.rect.centerx, enemy.rect.bottom)
         enemy_bullets.add(enemy_bullet)
         all_sprites.add(enemy_bullet)
+        enemyShotSound = pygame.mixer.Sound('sounds/shoot-enemy.mp3')
+        enemyShotSound.play()
+
+
 
     # Check for collisions
     hits = pygame.sprite.groupcollide(bullets, enemies.enemies, True, True)
     for hit in hits:
         score += 10
+        hitEnemySound = pygame.mixer.Sound('sounds/hit-enemy.mp3')
+        hitEnemySound.play()
 
     barrier_hits = pygame.sprite.groupcollide(bullets, barriers, True, False)
     player_hits = pygame.sprite.spritecollide(player, enemy_bullets, True)
@@ -238,6 +250,8 @@ while running:
 
     for hit in player_hits:
         player.lose_life()
+        hitPlayerSound = pygame.mixer.Sound('sounds/hit-player.mp3')
+        hitPlayerSound.play()
         if player.lives <= 0:
             running = False
 
