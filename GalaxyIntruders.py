@@ -1,7 +1,3 @@
-
-#ToDO
-# - Highscoreeingabe und anschließende Highscore-Tabelle mit New Game Button im Screen
-
 __author__ = 'sdetmer'
 
 # Import and Initialization
@@ -25,6 +21,7 @@ bg = pygame.image.load("images/GalaxyIntrudersBG.jpg")
 # Colors
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
+BLACK = (0, 0, 0)
 
 # Highscore database setup
 conn = sqlite3.connect('highscores.db')
@@ -33,6 +30,10 @@ c.execute('''CREATE TABLE IF NOT EXISTS highscores
              (name TEXT, score INTEGER)''')
 conn.commit()
 
+# Fonts
+font = pygame.font.Font(None, 36)
+large_font = pygame.font.Font(None, 72)
+button_font = pygame.font.Font(None, 24)  # Kleinere Schriftgröße für Buttons
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -176,34 +177,115 @@ class EnemyGroup:
 
 
 # Setup
-player = Player()
-enemies = EnemyGroup()
-bullets = pygame.sprite.Group()
-enemy_bullets = pygame.sprite.Group()
-barriers = pygame.sprite.Group()
+def setup_game():
+    global player, enemies, bullets, enemy_bullets, barriers, all_sprites, score
+    player = Player()
+    enemies = EnemyGroup()
+    bullets = pygame.sprite.Group()
+    enemy_bullets = pygame.sprite.Group()
+    barriers = pygame.sprite.Group()
 
-# Create enemies with different types
-enemy_classes = [RedEnemy, GreenEnemy, WhiteEnemy, PurpleEnemy, YellowEnemy]
+    # Create enemies with different types
+    enemy_classes = [RedEnemy, GreenEnemy, WhiteEnemy, PurpleEnemy, YellowEnemy]
 
-for row in range(5):
-    for col in range(10):
-        enemy_class = enemy_classes[row % len(enemy_classes)]
-        enemy = enemy_class(40 * col + 20, 30 * row + 20)
-        enemies.add(enemy)
+    for row in range(5):
+        for col in range(10):
+            enemy_class = enemy_classes[row % len(enemy_classes)]
+            enemy = enemy_class(40 * col + 20, 30 * row + 20)
+            enemies.add(enemy)
 
-# Create barriers
-barrier_positions = [(75, size[1] - 100), (175, size[1] - 100), (275, size[1] - 100), (375, size[1] - 100)]
-for pos in barrier_positions:
-    barrier = Barrier(pos[0], pos[1])
-    barriers.add(barrier)
+    # Create barriers
+    barrier_positions = [(75, size[1] - 100), (175, size[1] - 100), (275, size[1] - 100), (375, size[1] - 100)]
+    for pos in barrier_positions:
+        barrier = Barrier(pos[0], pos[1])
+        barriers.add(barrier)
 
-all_sprites = pygame.sprite.Group(player, *barriers)
-all_sprites.add(*enemies.enemies)
+    all_sprites = pygame.sprite.Group(player, *barriers)
+    all_sprites.add(*enemies.enemies)
+    score = 0
 
-# Loop
+
+def draw_text_centered(text, font, color, screen, rect):
+    text_surface = font.render(text, True, color)
+    text_rect = text_surface.get_rect(center=rect.center)
+    screen.blit(text_surface, text_rect)
+
+
+def game_over_screen():
+    name_input = ''
+    input_active = True
+    while input_active:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                return
+            elif event.type == KEYDOWN:
+                if event.key == K_RETURN:
+                    input_active = False
+                elif event.key == K_BACKSPACE:
+                    name_input = name_input[:-1]
+                else:
+                    name_input += event.unicode
+
+        screen.fill(BLACK)
+        draw_text_centered('Game Over', large_font, RED, screen, pygame.Rect(0, 50, size[0], 100))
+        draw_text_centered('Enter Name:', font, WHITE, screen, pygame.Rect(0, 150, size[0], 50))
+        draw_text_centered(name_input, font, WHITE, screen, pygame.Rect(0, 200, size[0], 50))
+        pygame.display.flip()
+
+    c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name_input, score))
+    conn.commit()
+    show_highscores()
+
+
+def show_highscores():
+    c.execute("SELECT * FROM highscores ORDER BY score DESC LIMIT 10")
+    highscores = c.fetchall()
+    showing_scores = True
+    while showing_scores:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                return
+            elif event.type == MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                if new_game_button.collidepoint(mouse_pos):
+                    setup_game()
+                    showing_scores = False
+                elif quit_button.collidepoint(mouse_pos):
+                    pygame.quit()
+                    return
+
+        screen.fill(BLACK)
+        draw_text_centered('Highscores', large_font, RED, screen, pygame.Rect(0, 50, size[0], 100))
+
+        y_offset = 150
+        for highscore in highscores:
+            highscore_text = f'{highscore[0]}: {highscore[1]}'
+            draw_text_centered(highscore_text, font, WHITE, screen, pygame.Rect(0, y_offset, size[0], 50))
+            y_offset += 30
+
+        new_game_button = pygame.Rect(size[0] // 2 - 150, size[1] - 100, 100, 50)
+        quit_button = pygame.Rect(size[0] // 2 + 50, size[1] - 100, 100, 50)
+        pygame.draw.rect(screen, WHITE, new_game_button)
+        pygame.draw.rect(screen, WHITE, quit_button)
+
+        new_game_text = button_font.render('New Game', True, BLACK)
+        quit_text = button_font.render('Quit', True, BLACK)
+
+        # Center the text on the buttons
+        screen.blit(new_game_text, (new_game_button.x + (new_game_button.width - new_game_text.get_width()) // 2,
+                                    new_game_button.y + (new_game_button.height - new_game_text.get_height()) // 2))
+        screen.blit(quit_text, (quit_button.x + (quit_button.width - quit_text.get_width()) // 2,
+                                quit_button.y + (quit_button.height - quit_text.get_height()) // 2))
+
+        pygame.display.flip()
+
+
+# Main game loop
+setup_game()
 running = True
 clock = pygame.time.Clock()
-score = 0
 
 while running:
     # Event Handling
@@ -235,8 +317,6 @@ while running:
         enemyShotSound = pygame.mixer.Sound('sounds/shoot-enemy.mp3')
         enemyShotSound.play()
 
-
-
     # Check for collisions
     hits = pygame.sprite.groupcollide(bullets, enemies.enemies, True, True)
     for hit in hits:
@@ -253,15 +333,18 @@ while running:
         hitPlayerSound = pygame.mixer.Sound('sounds/hit-player.mp3')
         hitPlayerSound.play()
         if player.lives <= 0:
+            game_over_screen()
             running = False
 
     # Check if any enemies have reached the barriers
     enemy_collides_with_barriers = pygame.sprite.groupcollide(enemies.enemies, barriers, False, False)
     if any(enemy_collides_with_barriers.values()):
+        game_over_screen()
         running = False
 
     # Check if all enemies are defeated
     if enemies.is_empty():
+        game_over_screen()
         running = False
 
     # Draw the background
@@ -271,7 +354,6 @@ while running:
     all_sprites.draw(screen)
 
     # Display score
-    font = pygame.font.Font(None, 36)
     score_text = font.render(f'Score: {score}', True, WHITE)
     screen.blit(score_text, (10, 10))
 
@@ -283,19 +365,5 @@ while running:
     pygame.display.flip()
     clock.tick(60)
 
-# Save Highscore
-if score > 0:  # Nur Highscore speichern, wenn Punktzahl größer als 0 ist
-    name = input("Gib deinen Namen ein: ")
-    c.execute("INSERT INTO highscores (name, score) VALUES (?, ?)", (name, score))
-    conn.commit()
-
-# Display highscores
-c.execute("SELECT * FROM highscores ORDER BY score DESC LIMIT 10")
-highscores = c.fetchall()
-print("Highscores:")
-for highscore in highscores:
-    print(f"{highscore[0]}: {highscore[1]}")
-
 conn.close()
 pygame.quit()
-
