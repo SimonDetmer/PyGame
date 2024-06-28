@@ -83,21 +83,17 @@ class RedEnemy(Enemy):
     def __init__(self, x, y):
         super(RedEnemy, self).__init__(x, y, "images/enemy-red.png")
 
-
 class YellowEnemy(Enemy):
     def __init__(self, x, y):
         super(YellowEnemy, self).__init__(x, y, "images/enemy-yellow.png")
-
 
 class WhiteEnemy(Enemy):
     def __init__(self, x, y):
         super(WhiteEnemy, self).__init__(x, y, "images/enemy-white.png")
 
-
 class PurpleEnemy(Enemy):
     def __init__(self, x, y):
         super(PurpleEnemy, self).__init__(x, y, "images/enemy-purple.png")
-
 
 class GreenEnemy(Enemy):
     def __init__(self, x, y):
@@ -178,7 +174,7 @@ class EnemyGroup:
 
 # Setup
 def setup_game():
-    global player, enemies, bullets, enemy_bullets, barriers, all_sprites, score
+    global player, enemies, bullets, enemy_bullets, barriers, all_sprites, score, running
     player = Player()
     enemies = EnemyGroup()
     bullets = pygame.sprite.Group()
@@ -203,6 +199,7 @@ def setup_game():
     all_sprites = pygame.sprite.Group(player, *barriers)
     all_sprites.add(*enemies.enemies)
     score = 0
+    running = True  # Ensure running is True when the game restarts
 
 
 def draw_text_centered(text, font, color, screen, rect):
@@ -212,13 +209,14 @@ def draw_text_centered(text, font, color, screen, rect):
 
 
 def game_over_screen():
+    global running
     name_input = ''
     input_active = True
     while input_active:
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
-                return
+                exit()
             elif event.type == KEYDOWN:
                 if event.key == K_RETURN:
                     input_active = False
@@ -251,13 +249,14 @@ def show_highscores():
                 mouse_pos = pygame.mouse.get_pos()
                 if new_game_button.collidepoint(mouse_pos):
                     setup_game()
+                    run_game()
                     showing_scores = False
                 elif quit_button.collidepoint(mouse_pos):
                     pygame.quit()
                     return
 
         screen.fill(BLACK)
-        draw_text_centered('Highscores', large_font, RED, screen, pygame.Rect(0, 50, size[0], 100))
+        draw_text_centered('High Scores', large_font, RED, screen, pygame.Rect(0, 50, size[0], 100))
 
         y_offset = 150
         for highscore in highscores:
@@ -282,88 +281,91 @@ def show_highscores():
         pygame.display.flip()
 
 
-# Main game loop
-setup_game()
-running = True
-clock = pygame.time.Clock()
+def run_game():
+    global running, score
+    setup_game()
+    clock = pygame.time.Clock()
 
-while running:
     # Event Handling
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            running = False
-        elif event.type == KEYDOWN and event.key == K_SPACE:
-            bullet = Bullet(player.rect.centerx, player.rect.top)
-            bullets.add(bullet)
-            all_sprites.add(bullet)
-            playerShotSound = pygame.mixer.Sound('sounds/shoot-player.mp3')
-            playerShotSound.play()
+    while running:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                running = False
+            elif event.type == KEYDOWN and event.key == K_SPACE:
+                bullet = Bullet(player.rect.centerx, player.rect.top)
+                bullets.add(bullet)
+                all_sprites.add(bullet)
+                playerShotSound = pygame.mixer.Sound('sounds/shoot-player.mp3')
+                playerShotSound.play()
 
-    # Timer
-    keys = pygame.key.get_pressed()
+        # Timer
+        keys = pygame.key.get_pressed()
 
-    # Update
-    player.update(keys)
-    enemies.update()
-    bullets.update()
-    enemy_bullets.update()
+        # Update
+        player.update(keys)
+        enemies.update()
+        bullets.update()
+        enemy_bullets.update()
 
-    # Randomly shoot enemy bullets
-    if random.random() < 0.01:
-        enemy = random.choice(enemies.enemies.sprites())
-        enemy_bullet = EnemyBullet(enemy.rect.centerx, enemy.rect.bottom)
-        enemy_bullets.add(enemy_bullet)
-        all_sprites.add(enemy_bullet)
-        enemyShotSound = pygame.mixer.Sound('sounds/shoot-enemy.mp3')
-        enemyShotSound.play()
+        # Randomly shoot enemy bullets
+        if random.random() < 0.01:
+            enemy = random.choice(enemies.enemies.sprites())
+            enemy_bullet = EnemyBullet(enemy.rect.centerx, enemy.rect.bottom)
+            enemy_bullets.add(enemy_bullet)
+            all_sprites.add(enemy_bullet)
+            enemyShotSound = pygame.mixer.Sound('sounds/shoot-enemy.mp3')
+            enemyShotSound.play()
 
-    # Check for collisions
-    hits = pygame.sprite.groupcollide(bullets, enemies.enemies, True, True)
-    for hit in hits:
-        score += 10
-        hitEnemySound = pygame.mixer.Sound('sounds/hit-enemy.mp3')
-        hitEnemySound.play()
+        # Check for collisions
+        hits = pygame.sprite.groupcollide(bullets, enemies.enemies, True, True)
+        for hit in hits:
+            score += 10
+            hitEnemySound = pygame.mixer.Sound('sounds/hit-enemy.mp3')
+            hitEnemySound.play()
 
-    barrier_hits = pygame.sprite.groupcollide(bullets, barriers, True, False)
-    player_hits = pygame.sprite.spritecollide(player, enemy_bullets, True)
-    barrier_enemy_hits = pygame.sprite.groupcollide(enemy_bullets, barriers, True, False)
+        barrier_hits = pygame.sprite.groupcollide(bullets, barriers, True, False)
+        player_hits = pygame.sprite.spritecollide(player, enemy_bullets, True)
+        barrier_enemy_hits = pygame.sprite.groupcollide(enemy_bullets, barriers, True, False)
 
-    for hit in player_hits:
-        player.lose_life()
-        hitPlayerSound = pygame.mixer.Sound('sounds/hit-player.mp3')
-        hitPlayerSound.play()
-        if player.lives <= 0:
+        for hit in player_hits:
+            player.lose_life()
+            hitPlayerSound = pygame.mixer.Sound('sounds/hit-player.mp3')
+            hitPlayerSound.play()
+            if player.lives <= 0:
+                game_over_screen()
+                running = False
+
+        # Check if any enemies have reached the barriers
+        enemy_collides_with_barriers = pygame.sprite.groupcollide(enemies.enemies, barriers, False, False)
+        if any(enemy_collides_with_barriers.values()):
             game_over_screen()
             running = False
 
-    # Check if any enemies have reached the barriers
-    enemy_collides_with_barriers = pygame.sprite.groupcollide(enemies.enemies, barriers, False, False)
-    if any(enemy_collides_with_barriers.values()):
-        game_over_screen()
-        running = False
+        # Check if all enemies are defeated
+        if enemies.is_empty():
+            game_over_screen()
+            running = False
 
-    # Check if all enemies are defeated
-    if enemies.is_empty():
-        game_over_screen()
-        running = False
+        # Draw the background
+        screen.blit(bg, (0, 0))
 
-    # Draw the background
-    screen.blit(bg, (0, 0))
+        # Draw all sprites
+        all_sprites.draw(screen)
 
-    # Draw all sprites
-    all_sprites.draw(screen)
+        # Display score
+        score_text = font.render(f'Score: {score}', True, WHITE)
+        screen.blit(score_text, (10, 10))
 
-    # Display score
-    score_text = font.render(f'Score: {score}', True, WHITE)
-    screen.blit(score_text, (10, 10))
+        # Display lives
+        lives_text = font.render(f'Lives: {player.lives}', True, WHITE)
+        screen.blit(lives_text, (size[0] - 100, 10))
 
-    # Display lives
-    lives_text = font.render(f'Lives: {player.lives}', True, WHITE)
-    screen.blit(lives_text, (size[0] - 100, 10))
+        # Redisplay
+        pygame.display.flip()
+        clock.tick(60)
 
-    # Redisplay
-    pygame.display.flip()
-    clock.tick(60)
+    conn.close()
+    pygame.quit()
 
-conn.close()
-pygame.quit()
+# Start the game
+run_game()
